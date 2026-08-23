@@ -1,6 +1,6 @@
-実際にResourceGraphを使って、AzureFirewallのルール一覧を表示するためのクエリを作成してみよう
+# 実際にResourceGraphを使って、AzureFirewallのルール一覧を表示するためのクエリを作成してみよう
 
-# AzureFirewallのルールのリソース構成について
+## AzureFirewallのルールのリソース構成について
 AzureFirewallは主にAzureFirewall本体と、AzureFirewallポリシーで成り立っています。
 
 一般的にportalで穴あけルールを作る際、Azurefirewallポリシーに対して作業をするように見えます。
@@ -25,7 +25,7 @@ ResourceGraphでは、これに対して検索をする必要があります。
 
 ---
 
-# ResourceGraphで検索
+## ResourceGraphで検索
 
 それでは、ResourceGraphで以下のクエリを打ってみましょう。
 
@@ -82,7 +82,8 @@ ruleCollections: [
 このままでは、複数の規則コレクションが1つのセルにまとまっているため、それぞれの情報を扱いにくい状態です。
 
 そこで使用するのが mv-expand です。
-mv-expandとは
+
+##  mv-expandで複数の要素を展開する
 
 mv-expand は、配列に格納されている複数の要素を、それぞれ別の行に展開するための演算子です。
 
@@ -146,10 +147,166 @@ networkresources
 | extend priority = ruleCollections.priority
 | extend action = ruleCollections.action.type
 | extend ruleName = rules.name
+| extend ruleType = rules.ruleType
 | extend sourceAddresses = rules.sourceAddresses
 | extend protocols = rules.protocols
 | extend targetFqdns = rules.targetFqdns
-| extend ruleType = rules.ruleType
-| extend ruleType = rules.targetUrls
-| extend ruleType = rules.fqdnTags
+| extend targetUrls = rules.targetUrls
+| extend fqdnTags = rules.fqdnTags
 ```
+
+ところが、ネットワークルールは展開されていないですね。
+
+![alt text](<スクリーンショット 2026-08-21 083317-1.png>)
+
+ネットワークルールとアプリケーションルールは、プロパティの構造が異なるため、必要なプロパティを指定して展開する必要があります。
+
+また、extendは、コンマで区切れば1度に複数指定できることを覚えておきましょう。
+
+```
+networkresources
+| where type =~ "Microsoft.Network/firewallPolicies/ruleCollectionGroups"
+| mv-expand ruleCollections = properties.ruleCollections
+| mv-expand rules = ruleCollections.rules
+| project name, ruleCollections, rules
+| extend ruleCollection = ruleCollections.name
+| extend priority = ruleCollections.priority
+| extend action = ruleCollections.action.type
+| extend ruleName = rules.name
+| extend ruleType = rules.ruleType
+| extend sourceAddresses = rules.sourceAddresses
+| extend protocols = rules.protocols
+| extend targetFqdns = rules.targetFqdns
+| extend targetUrls = rules.targetUrls
+| extend fqdnTags = rules.fqdnTags
+| extend
+    sourceIpGroups = rules.sourceIpGroups,
+    ipProtocols = rules.ipProtocols,
+    destinationPorts = rules.destinationPorts,
+    destinationAddresses = rules.destinationAddresses,
+    destinationIpGroups = rules.destinationIpGroups,
+    destinationFqdns = rules.destinationFqdns
+```
+
+## 2つの列を一つにまとめる方法
+ここまで出来たら、必要な列だけに絞り、ルールごとに表示の異なる同じ意味の項目の列はまとめて表示するようにしてみましょう。
+
+![alt text](<スクリーンショット 2026-08-23 092159.png>)
+
+```
+networkresources
+| where type =~ "Microsoft.Network/firewallPolicies/ruleCollectionGroups"
+| mv-expand ruleCollections = properties.ruleCollections
+| mv-expand rules = ruleCollections.rules
+| project name, ruleCollections, rules
+| extend ruleCollection = ruleCollections.name
+| extend priority = ruleCollections.priority
+| extend action = ruleCollections.action.type
+| extend ruleName = rules.name
+| extend ruleType = rules.ruleType
+| extend sourceAddresses = rules.sourceAddresses
+| extend sourceIpGroups = rules.sourceIpGroups
+| extend ipProtocols = rules.ipProtocols
+| extend destinationPorts = rules.destinationPorts
+| extend protocols = rules.protocols
+| extend destinationAddresses = rules.destinationAddresses
+| extend destinationIpGroups = rules.destinationIpGroups
+| extend destinationFqdns = rules.destinationFqdns
+| extend targetFqdns = rules.targetFqdns
+| extend targetUrls = rules.targetUrls
+| extend fqdnTags = rules.fqdnTags 
+```
+
+ここで、プロトコル（ipProtocols/protocols)と、宛先fqdn(destinationFqdns/targetFqdns)についてを1行にまとめてみましょう。
+
+ruleTypeの値に応じて、case構文を使って分岐します。
+```
+| extend protocol = case(
+    ruleType == "ApplicationRule", protocols,
+    ruleType == "NetworkRule", ipProtocols,
+    dynamic([])
+    )
+```
+```
+| extend destinationFqdns = case(
+    ruleType == "ApplicationRule", rules.targetFqdns,
+    ruleType == "NetworkRule", rules.destinationFqdns,
+    dynamic([])
+)
+```
+
+このようにまとめることができました。
+```
+networkresources
+| where type =~ "Microsoft.Network/firewallPolicies/ruleCollectionGroups"
+| mv-expand ruleCollections = properties.ruleCollections
+| mv-expand rules = ruleCollections.rules
+| project name, ruleCollections, rules
+| extend ruleCollection = ruleCollections.name
+| extend priority = ruleCollections.priority
+| extend action = ruleCollections.action.type
+| extend ruleName = rules.name
+| extend ruleType = rules.ruleType
+| extend sourceAddresses = rules.sourceAddresses
+| extend sourceIpGroups = rules.sourceIpGroups
+| extend ipProtocols = rules.ipProtocols
+| extend destinationPorts = rules.destinationPorts
+| extend protocols = rules.protocols
+| extend protocol = case(
+    ruleType == "ApplicationRule", protocols,
+    ruleType == "NetworkRule", ipProtocols,
+    dynamic([])
+)
+| extend destinationAddresses = rules.destinationAddresses
+| extend destinationIpGroups = rules.destinationIpGroups
+| extend destinationFqdns = rules.destinationFqdns
+| extend targetFqdns = rules.targetFqdns
+| extend destinationFqdns = case(
+    ruleType == "ApplicationRule", rules.targetFqdns,
+    ruleType == "NetworkRule", rules.destinationFqdns,
+    dynamic([])
+)
+| extend targetUrls = rules.targetUrls
+| extend fqdnTags = rules.fqdnTags 
+```
+
+最後に、project構文を末尾に追記して、必要な項目だけを表示させて完成です。
+
+```
+networkresources
+| where type =~ "Microsoft.Network/firewallPolicies/ruleCollectionGroups"
+| mv-expand ruleCollections = properties.ruleCollections
+| mv-expand rules = ruleCollections.rules
+| project name, ruleCollections, rules
+| extend ruleCollection = ruleCollections.name
+| extend priority = ruleCollections.priority
+| extend action = ruleCollections.action.type
+| extend ruleName = rules.name
+| extend ruleType = rules.ruleType
+| extend sourceAddresses = rules.sourceAddresses
+| extend sourceIpGroups = rules.sourceIpGroups
+| extend ipProtocols = rules.ipProtocols
+| extend destinationPorts = rules.destinationPorts
+| extend protocols = rules.protocols
+| extend protocol = case(
+    ruleType == "ApplicationRule", protocols,
+    ruleType == "NetworkRule", ipProtocols,
+    dynamic([])
+)
+| extend destinationAddresses = rules.destinationAddresses
+| extend destinationIpGroups = rules.destinationIpGroups
+| extend destinationFqdns = rules.destinationFqdns
+| extend targetFqdns = rules.targetFqdns
+| extend destinationFqdns = case(
+    ruleType == "ApplicationRule", rules.targetFqdns,
+    ruleType == "NetworkRule", rules.destinationFqdns,
+    dynamic([])
+)
+| extend targetUrls = rules.targetUrls
+| extend fqdnTags = rules.fqdnTags 
+| project name, ruleCollection, priority, action, ruleName, ruleType, sourceAddresses, sourceIpGroups, protocol, destinationPorts, destinationAddresses, destinationIpGroups, destinationFqdns, targetUrls, fqdnTags
+```
+
+## まとめ
+このように、クエリの構文を駆使して、必要な情報を取り出すことができます。
+ほかにも使えるAzureサービスはたくさんあるので、ぜひ試してみてください。
