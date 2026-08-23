@@ -1,14 +1,401 @@
 # 実際にResourceGraphを使って、AzureFirewallのルール一覧を表示するためのクエリを作成してみよう
 
+## 前提
+
+事前にテスト用のAzureFirewallを、ARMテンプレートを使い、Azure Portalの「カスタム テンプレートからのデプロイ」からデプロイしておきましょう。これは料金がかかりません。
+
+<details><summary>ARM Templateはこちら</summary>
+
+```
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "firewallPolicies_testFirewall_name": {
+            "defaultValue": "testFirewall",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/firewallPolicies",
+            "apiVersion": "2025-07-01",
+            "name": "[parameters('firewallPolicies_testFirewall_name')]",
+            "location": "japaneast",
+            "properties": {
+                "sku": {
+                    "tier": "Standard"
+                },
+                "threatIntelMode": "Alert",
+                "threatIntelWhitelist": {
+                    "fqdns": [],
+                    "ipAddresses": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+            "apiVersion": "2025-07-01",
+            "name": "[concat(parameters('firewallPolicies_testFirewall_name'), '/DefaultApplicationRuleCollectionGroup')]",
+            "location": "japaneast",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/firewallPolicies', parameters('firewallPolicies_testFirewall_name'))]"
+            ],
+            "properties": {
+                "priority": 300,
+                "ruleCollections": [
+                    {
+                        "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                        "action": {
+                            "type": "Allow"
+                        },
+                        "rules": [
+                            {
+                                "ruleType": "ApplicationRule",
+                                "name": "rc-3-1",
+                                "protocols": [
+                                    {
+                                        "protocolType": "Http",
+                                        "port": 80
+                                    },
+                                    {
+                                        "protocolType": "Https",
+                                        "port": 443
+                                    }
+                                ],
+                                "fqdnTags": [],
+                                "webCategories": [],
+                                "targetFqdns": [
+                                    "www.google.com"
+                                ],
+                                "targetUrls": [],
+                                "terminateTLS": false,
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "destinationAddresses": [],
+                                "sourceIpGroups": [],
+                                "httpHeadersToInsert": []
+                            },
+                            {
+                                "ruleType": "ApplicationRule",
+                                "name": "rc-3-2",
+                                "protocols": [
+                                    {
+                                        "protocolType": "Http",
+                                        "port": 80
+                                    },
+                                    {
+                                        "protocolType": "Https",
+                                        "port": 443
+                                    }
+                                ],
+                                "fqdnTags": [],
+                                "webCategories": [],
+                                "targetFqdns": [
+                                    "www.yahoo.co.jp"
+                                ],
+                                "targetUrls": [],
+                                "terminateTLS": false,
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "destinationAddresses": [],
+                                "sourceIpGroups": [],
+                                "httpHeadersToInsert": []
+                            },
+                            {
+                                "ruleType": "ApplicationRule",
+                                "name": "rc-3-3",
+                                "protocols": [
+                                    {
+                                        "protocolType": "Http",
+                                        "port": 80
+                                    },
+                                    {
+                                        "protocolType": "Https",
+                                        "port": 443
+                                    }
+                                ],
+                                "fqdnTags": [],
+                                "webCategories": [],
+                                "targetFqdns": [
+                                    "github.com"
+                                ],
+                                "targetUrls": [],
+                                "terminateTLS": false,
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "destinationAddresses": [],
+                                "sourceIpGroups": [],
+                                "httpHeadersToInsert": []
+                            }
+                        ],
+                        "name": "rc-03",
+                        "priority": 100
+                    },
+                    {
+                        "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                        "action": {
+                            "type": "Deny"
+                        },
+                        "rules": [
+                            {
+                                "ruleType": "ApplicationRule",
+                                "name": "rc-4-1",
+                                "protocols": [
+                                    {
+                                        "protocolType": "Http",
+                                        "port": 80
+                                    }
+                                ],
+                                "fqdnTags": [],
+                                "webCategories": [],
+                                "targetFqdns": [
+                                    "www.google.com"
+                                ],
+                                "targetUrls": [],
+                                "terminateTLS": false,
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "destinationAddresses": [],
+                                "sourceIpGroups": [],
+                                "httpHeadersToInsert": []
+                            },
+                            {
+                                "ruleType": "ApplicationRule",
+                                "name": "rc-4-2",
+                                "protocols": [
+                                    {
+                                        "protocolType": "Http",
+                                        "port": 80
+                                    }
+                                ],
+                                "fqdnTags": [],
+                                "webCategories": [],
+                                "targetFqdns": [
+                                    "www.yahoo.co.jp"
+                                ],
+                                "targetUrls": [],
+                                "terminateTLS": false,
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "destinationAddresses": [],
+                                "sourceIpGroups": [],
+                                "httpHeadersToInsert": []
+                            },
+                            {
+                                "ruleType": "ApplicationRule",
+                                "name": "rc-4-3",
+                                "protocols": [
+                                    {
+                                        "protocolType": "Http",
+                                        "port": 80
+                                    }
+                                ],
+                                "fqdnTags": [],
+                                "webCategories": [],
+                                "targetFqdns": [
+                                    "github.com"
+                                ],
+                                "targetUrls": [],
+                                "terminateTLS": false,
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "destinationAddresses": [],
+                                "sourceIpGroups": [],
+                                "httpHeadersToInsert": []
+                            }
+                        ],
+                        "name": "rc-04",
+                        "priority": 200
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+            "apiVersion": "2025-07-01",
+            "name": "[concat(parameters('firewallPolicies_testFirewall_name'), '/DefaultNetworkRuleCollectionGroup')]",
+            "location": "japaneast",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/firewallPolicies', parameters('firewallPolicies_testFirewall_name'))]"
+            ],
+            "properties": {
+                "priority": 200,
+                "ruleCollections": [
+                    {
+                        "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                        "action": {
+                            "type": "Allow"
+                        },
+                        "rules": [
+                            {
+                                "ruleType": "NetworkRule",
+                                "name": "rule1-1",
+                                "ipProtocols": [
+                                    "TCP",
+                                    "UDP",
+                                    "ICMP"
+                                ],
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "sourceIpGroups": [],
+                                "destinationAddresses": [
+                                    "10.0.1.0/24"
+                                ],
+                                "destinationIpGroups": [],
+                                "destinationFqdns": [],
+                                "destinationPorts": [
+                                    "80",
+                                    "443",
+                                    "22",
+                                    "3389"
+                                ]
+                            },
+                            {
+                                "ruleType": "NetworkRule",
+                                "name": "rule1-2",
+                                "ipProtocols": [
+                                    "TCP"
+                                ],
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "sourceIpGroups": [],
+                                "destinationAddresses": [
+                                    "10.0.1.0/24"
+                                ],
+                                "destinationIpGroups": [],
+                                "destinationFqdns": [],
+                                "destinationPorts": [
+                                    "80",
+                                    "443"
+                                ]
+                            },
+                            {
+                                "ruleType": "NetworkRule",
+                                "name": "rule1-3",
+                                "ipProtocols": [
+                                    "ICMP"
+                                ],
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "sourceIpGroups": [],
+                                "destinationAddresses": [
+                                    "10.0.1.0/24"
+                                ],
+                                "destinationIpGroups": [],
+                                "destinationFqdns": [],
+                                "destinationPorts": [
+                                    "*"
+                                ]
+                            }
+                        ],
+                        "name": "rc-01",
+                        "priority": 100
+                    },
+                    {
+                        "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                        "action": {
+                            "type": "Deny"
+                        },
+                        "rules": [
+                            {
+                                "ruleType": "NetworkRule",
+                                "name": "rule-2-1",
+                                "ipProtocols": [
+                                    "TCP",
+                                    "UDP",
+                                    "ICMP"
+                                ],
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "sourceIpGroups": [],
+                                "destinationAddresses": [
+                                    "10.0.2.0/24"
+                                ],
+                                "destinationIpGroups": [],
+                                "destinationFqdns": [],
+                                "destinationPorts": [
+                                    "80",
+                                    "443",
+                                    "22",
+                                    "3389"
+                                ]
+                            },
+                            {
+                                "ruleType": "NetworkRule",
+                                "name": "rule-2-2",
+                                "ipProtocols": [
+                                    "TCP"
+                                ],
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "sourceIpGroups": [],
+                                "destinationAddresses": [
+                                    "10.0.2.0/24"
+                                ],
+                                "destinationIpGroups": [],
+                                "destinationFqdns": [],
+                                "destinationPorts": [
+                                    "80",
+                                    "443"
+                                ]
+                            },
+                            {
+                                "ruleType": "NetworkRule",
+                                "name": "rule-2-3",
+                                "ipProtocols": [
+                                    "ICMP"
+                                ],
+                                "sourceAddresses": [
+                                    "10.0.0.0/24"
+                                ],
+                                "sourceIpGroups": [],
+                                "destinationAddresses": [
+                                    "10.0.2.0/24"
+                                ],
+                                "destinationIpGroups": [],
+                                "destinationFqdns": [],
+                                "destinationPorts": [
+                                    "*"
+                                ]
+                            }
+                        ],
+                        "name": "rc-02",
+                        "priority": 200
+                    }
+                ]
+            }
+        }
+    ]
+}
+```
+
+</details>
+
+
 ## AzureFirewallのルールのリソース構成について
 AzureFirewallは主にAzureFirewall本体と、AzureFirewallポリシーで成り立っています。
 
 一般的にportalで穴あけルールを作る際、Azurefirewallポリシーに対して作業をするように見えます。<br>
 しかし、JSONファイルを見てみましょう。<br>
-どこにも穴あけルールについての記載がありません。<br>
+どこにも穴あけルールについての記載がありません。
+
 ![alt text](<スクリーンショット 2026-08-18 085810.png>)
 
 <br>
+
 では、どこにAzureFirewallの穴あけが記載されているのでしょうか。
 
 ARMテンプレートを見てみましょう。すると、リソースが3つ存在します。<br>
@@ -33,13 +420,15 @@ resources
 ```
 <br>
 しかし、結果は何も表示されません。
-![alt text](<スクリーンショット 2026-08-18 090913.png>)
+
+![alt text](<スクリーンショット 2026-08-18 090913-1.png>)
 
 <br>
 では、テーブル検索欄に、リソースタイプ「Microsoft.Network/firewallPolicies/ruleCollectionGroups」を検索してみましょう。<br>
 すると、規則コレクショングループは、networkresourcesというテーブルに入っていることがわかります。
 <br>
-![alt text](<スクリーンショット 2026-08-18 091042.png>)
+
+![alt text](<スクリーンショット 2026-08-18 091042-1.png>)
 
 では、テーブル名を直して、もう一度実行してみましょう。<br>
 これで検索がかかったと思います。
@@ -108,6 +497,12 @@ Azure Firewallの場合、1つの規則コレクショングループの中に�
 そのため、<br>
 | mv-expand ruleCollections<br>
 とすることで、それぞれの規則コレクションを1行ずつに展開できます。
+
+:::note info
+インフォメーション
+infoは省略可能です。
+:::
+
 
 では、extendを書き換えましょう。<br>
 すると、ruleCollectionsの中にある{}の内容が、ruleCollectionsの列名で、1つあたり1行ずつ展開されていることがわかります。
