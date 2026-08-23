@@ -3,28 +3,26 @@
 ## AzureFirewallのルールのリソース構成について
 AzureFirewallは主にAzureFirewall本体と、AzureFirewallポリシーで成り立っています。
 
-一般的にportalで穴あけルールを作る際、Azurefirewallポリシーに対して作業をするように見えます。
-しかし、JSONファイルを見てみましょう。
-どこにも穴あけルールについての記載がありません。
+一般的にportalで穴あけルールを作る際、Azurefirewallポリシーに対して作業をするように見えます。<br>
+しかし、JSONファイルを見てみましょう。<br>
+どこにも穴あけルールについての記載がありません。<br>
 ![alt text](<スクリーンショット 2026-08-18 085810.png>)
 
+<br>
 では、どこにAzureFirewallの穴あけが記載されているのでしょうか。
 
-ARMテンプレートを見てみましょう。
-すると、リソースが3つ存在します。
-その中には、
-"type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups
-という記載が2つ存在しますね。
+ARMテンプレートを見てみましょう。すると、リソースが3つ存在します。<br>
+その中には、"type": "Microsoft.Network/firewallPolicies/ruleCollectionGroupsという記載が2つ存在しますね。
 
 ![alt text](<スクリーンショット 2026-08-18 090516.png>)
 
-そう、AzureFirewallの穴あけルールは、GUI上ではFirewallポリシーに対して作業をしているように見えても、
-隠れたリソースであるruleCollectionGroupの中に記載されているのです。
+<br>
 
-ResourceGraphでは、これに対して検索をする必要があります。
+そう、AzureFirewallの穴あけルールは、GUI上ではFirewallポリシーに対して作業をしているように見えても、<br>
+隠れたリソースであるruleCollectionGroupの中に記載されているのです。<br>
+ResourceGraphでは、これに対して検索をする必要があります。<br>
 
 ---
-
 ## ResourceGraphで検索
 
 それでは、ResourceGraphで以下のクエリを打ってみましょう。
@@ -33,34 +31,41 @@ ResourceGraphでは、これに対して検索をする必要があります。
 resources
 | where type =~ "Microsoft.Network/firewallPolicies/ruleCollectionGroups"
 ```
-
+<br>
 しかし、結果は何も表示されません。
 ![alt text](<スクリーンショット 2026-08-18 090913.png>)
 
-では、テーブル検索欄に、リソースタイプ「Microsoft.Network/firewallPolicies/ruleCollectionGroups」を検索してみましょう。
+<br>
+では、テーブル検索欄に、リソースタイプ「Microsoft.Network/firewallPolicies/ruleCollectionGroups」を検索してみましょう。<br>
 すると、規則コレクショングループは、networkresourcesというテーブルに入っていることがわかります。
-
+<br>
 ![alt text](<スクリーンショット 2026-08-18 091042.png>)
 
-では、テーブル名を直して、もう一度実行してみましょう。
+では、テーブル名を直して、もう一度実行してみましょう。<br>
 これで検索がかかったと思います。
+
 ![alt text](<スクリーンショット 2026-08-18 091253.png>)
 
-# ルールが記載されたプロパティを列に外出しする
-このクエリ結果には、直接記載ルールが1行ずつ出るわけではありません。
-必要な項目を外に出すという方法をとります。
+---
 
-では、1行目を見てみましょう。
-これを見ると、propertiesという列の中の、ruleCollectionsという配列がいます。
-ruleCollectionsは穴あけルールをグループ化するものですので、まずはこれを外に出します。
+## ルールが記載されたプロパティを列に外出しする
+このクエリ結果には、直接記載ルールが1行ずつ出るわけではありません。<br>
+必要な項目を外に出すという方法をとります。<br>
+
+では、1行目を見てみましょう。<br>
+これを見ると、propertiesという列の中の、ruleCollectionsという配列がいます。<br>
+ruleCollectionsは穴あけルールをグループ化するものですので、まずはこれを外に出します。<br>
 
 ![alt text](<スクリーンショット 2026-08-18 091545.png>)
 
-では、クエリを以下のように追記してみましょう。
-extendで列内の特定の項目を別の列に拡張します。
+<br>
+
+では、クエリを以下のように追記してみましょう。<br>
+extendで列内の特定の項目を別の列に拡張します。<br>
 今回は、右辺のproperties.ruleCollections(propertiesの中のruleCollections)を、左辺のruleCollectionsという名前(任意)として拡張します。
 
 すると、ruleCollectionsという名前の列が作られて、ruleCollectionsの中身だけが記載されていると思います。
+
 ```
 networkresources
 | where type =~ "Microsoft.Network/firewallPolicies/ruleCollectionGroups"
@@ -69,7 +74,9 @@ networkresources
 
 ![alt text](<スクリーンショット 2026-08-18 092038.png>)
 
-しかし、これでは不十分です。
+<br>
+
+しかし、これでは不十分です。<br>
 なぜなら、ExtendはpropertiesのruleCollectionsをそのまま外に出しているだけです。
 
 ```
@@ -85,31 +92,24 @@ ruleCollections: [
 
 ##  mv-expandで複数の要素を展開する
 
-mv-expand は、配列に格納されている複数の要素を、それぞれ別の行に展開するための演算子です。
-
+mv-expand は、配列に格納されている複数の要素を、それぞれ別の行に展開するための演算子です。<br>
 mv は multi-value（複数の値） を意味します。
 
-たとえば、以下のように1つの行に配列が格納されていたとします。
+たとえば、以下のように1つの行に配列が格納されていたとします。<br>
+["RuleCollection01", "RuleCollection02", "RuleCollection03"]<br>
 
-["RuleCollection01", "RuleCollection02", "RuleCollection03"]
-
-これに mv-expand を使用すると、
-
-RuleCollection01
-RuleCollection02
-RuleCollection03
-
+これに mv-expand を使用すると、<br>
+RuleCollection01<br>
+RuleCollection02<br>
+RuleCollection03<br>
 というように、配列の要素ごとに行が分割されます。
 
-Azure Firewallの場合、1つの規則コレクショングループの中に複数の ruleCollections が格納されています。
-
-そのため、
-
-| mv-expand ruleCollections
-
+Azure Firewallの場合、1つの規則コレクショングループの中に複数の ruleCollections が格納されています。<br>
+そのため、<br>
+| mv-expand ruleCollections<br>
 とすることで、それぞれの規則コレクションを1行ずつに展開できます。
 
-では、extendを書き換えましょう。
+では、extendを書き換えましょう。<br>
 すると、ruleCollectionsの中にある{}の内容が、ruleCollectionsの列名で、1つあたり1行ずつ展開されていることがわかります。
 
 ```
@@ -120,7 +120,9 @@ networkresources
 
 ![alt text](<スクリーンショット 2026-08-21 083317.png>)
 
-さらに、規則コレクションにはルールが内包されていますね。
+<br>
+
+さらに、規則コレクションにはルールが内包されていますね。<br>
 これも同じように展開しましょう。、ただし展開元はpropertiesではなく、ruleCollectionsです。
 
 ```
@@ -131,9 +133,12 @@ networkresources
 | project name, ruleCollections, rules
 ```
 
-ルールが1行ずつ展開されました。
+ルールが1行ずつ展開されました。<br>
 ここから、さらに細かくextendやmv-expandを使って列を作って展開することもできます。
+
 ![alt text](<スクリーンショット 2026-08-21 084408.png>)
+
+<br>
 
 アプリケーションルールに対して必要な行を展開しました。
 
@@ -159,8 +164,9 @@ networkresources
 
 ![alt text](<スクリーンショット 2026-08-21 083317-1.png>)
 
-ネットワークルールとアプリケーションルールは、プロパティの構造が異なるため、必要なプロパティを指定して展開する必要があります。
+<br>
 
+ネットワークルールとアプリケーションルールは、プロパティの構造が異なるため、必要なプロパティを指定して展開する必要があります。<br>
 また、extendは、コンマで区切れば1度に複数指定できることを覚えておきましょう。
 
 ```
@@ -193,6 +199,10 @@ networkresources
 
 ![alt text](<スクリーンショット 2026-08-23 092159.png>)
 
+<br>
+
+まずはextendした列を並び替えましょう。extendはいったん各行に出すようにします。
+
 ```
 networkresources
 | where type =~ "Microsoft.Network/firewallPolicies/ruleCollectionGroups"
@@ -216,7 +226,7 @@ networkresources
 | extend targetUrls = rules.targetUrls
 | extend fqdnTags = rules.fqdnTags 
 ```
-
+<br>
 ここで、プロトコル（ipProtocols/protocols)と、宛先fqdn(destinationFqdns/targetFqdns)についてを1行にまとめてみましょう。
 
 ruleTypeの値に応じて、case構文を使って分岐します。
@@ -226,14 +236,15 @@ ruleTypeの値に応じて、case構文を使って分岐します。
     ruleType == "NetworkRule", ipProtocols,
     dynamic([])
     )
-```
-```
+
 | extend destinationFqdns = case(
     ruleType == "ApplicationRule", rules.targetFqdns,
     ruleType == "NetworkRule", rules.destinationFqdns,
     dynamic([])
 )
 ```
+
+<br>
 
 このようにまとめることができました。
 ```
@@ -269,6 +280,7 @@ networkresources
 | extend targetUrls = rules.targetUrls
 | extend fqdnTags = rules.fqdnTags 
 ```
+<br>
 
 最後に、project構文を末尾に追記して、必要な項目だけを表示させて完成です。
 
