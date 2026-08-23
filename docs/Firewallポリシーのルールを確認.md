@@ -392,7 +392,7 @@ AzureFirewallは主にAzureFirewall本体と、AzureFirewallポリシーで成�
 しかし、JSONファイルを見てみましょう。<br>
 どこにも穴あけルールについての記載がありません。
 
-![alt text](<スクリーンショット 2026-08-18 085810.png>)
+![alt text](<img/スクリーンショット 2026-08-18 085810.png>)
 
 <br>
 
@@ -401,7 +401,7 @@ AzureFirewallは主にAzureFirewall本体と、AzureFirewallポリシーで成�
 ARMテンプレートを見てみましょう。すると、リソースが3つ存在します。<br>
 その中には、"type": "Microsoft.Network/firewallPolicies/ruleCollectionGroupsという記載が2つ存在しますね。
 
-![alt text](<スクリーンショット 2026-08-18 090516.png>)
+![alt text](<img/スクリーンショット 2026-08-18 090516.png>)
 
 <br>
 
@@ -421,19 +421,19 @@ resources
 <br>
 しかし、結果は何も表示されません。
 
-![alt text](<スクリーンショット 2026-08-18 090913-1.png>)
+![alt text](<img/スクリーンショット 2026-08-18 090913-1.png>)
 
 <br>
 では、テーブル検索欄に、リソースタイプ「Microsoft.Network/firewallPolicies/ruleCollectionGroups」を検索してみましょう。<br>
 すると、規則コレクショングループは、networkresourcesというテーブルに入っていることがわかります。
 <br>
 
-![alt text](<スクリーンショット 2026-08-18 091042-1.png>)
+![alt text](<img/スクリーンショット 2026-08-18 091042-1.png>)
 
 では、テーブル名を直して、もう一度実行してみましょう。<br>
 これで検索がかかったと思います。
 
-![alt text](<スクリーンショット 2026-08-18 091253.png>)
+![alt text](<img/スクリーンショット 2026-08-18 091253.png>)
 
 ---
 
@@ -445,7 +445,7 @@ resources
 これを見ると、propertiesという列の中の、ruleCollectionsという配列がいます。<br>
 ruleCollectionsは穴あけルールをグループ化するものですので、まずはこれを外に出します。<br>
 
-![alt text](<スクリーンショット 2026-08-18 091545.png>)
+![alt text](<img/スクリーンショット 2026-08-18 091545.png>)
 
 <br>
 
@@ -461,7 +461,7 @@ networkresources
 | extend ruleCollections = properties.ruleCollections
 ```
 
-![alt text](<スクリーンショット 2026-08-18 092038.png>)
+![alt text](<img/スクリーンショット 2026-08-18 092038.png>)
 
 <br>
 
@@ -498,12 +498,6 @@ Azure Firewallの場合、1つの規則コレクショングループの中に�
 | mv-expand ruleCollections<br>
 とすることで、それぞれの規則コレクションを1行ずつに展開できます。
 
-:::note info
-インフォメーション
-infoは省略可能です。
-:::
-
-
 では、extendを書き換えましょう。<br>
 すると、ruleCollectionsの中にある{}の内容が、ruleCollectionsの列名で、1つあたり1行ずつ展開されていることがわかります。
 
@@ -513,7 +507,7 @@ networkresources
 | mv-expand ruleCollections = properties.ruleCollections
 ```
 
-![alt text](<スクリーンショット 2026-08-21 083317.png>)
+![alt text](<img/スクリーンショット 2026-08-21 083317.png>)
 
 <br>
 
@@ -531,7 +525,7 @@ networkresources
 ルールが1行ずつ展開されました。<br>
 ここから、さらに細かくextendやmv-expandを使って列を作って展開することもできます。
 
-![alt text](<スクリーンショット 2026-08-21 084408.png>)
+![alt text](<img/スクリーンショット 2026-08-21 084408.png>)
 
 <br>
 
@@ -557,7 +551,7 @@ networkresources
 
 ところが、ネットワークルールは展開されていないですね。
 
-![alt text](<スクリーンショット 2026-08-21 083317-1.png>)
+![alt text](<img/スクリーンショット 2026-08-21 083317-1.png>)
 
 <br>
 
@@ -592,7 +586,7 @@ networkresources
 ## 2つの列を一つにまとめる方法
 ここまで出来たら、必要な列だけに絞り、ルールごとに表示の異なる同じ意味の項目の列はまとめて表示するようにしてみましょう。
 
-![alt text](<スクリーンショット 2026-08-23 092159.png>)
+![alt text](<img/スクリーンショット 2026-08-23 092159.png>)
 
 <br>
 
