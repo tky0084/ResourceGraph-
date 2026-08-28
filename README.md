@@ -322,45 +322,6 @@ Azure CLI / Azure PowerShell
 
 ---
 
-# Resource Graphの考え方
-
-Resource Graphは、
-
-**「Azureリソースを効率的に検索・調査するためのもの」**
-
-と考えると分かりやすいです。
-
-```text
-                    Azure Portal
-                         │
-                  画面から確認
-                         │
-                         ▼
-                ┌─────────────────┐
-                │ Azure Resources │
-                └─────────────────┘
-                    ▲          ▲
-                    │          │
-                検索・調査    操作・変更
-                    │          │
-             Resource Graph   │
-                               │
-                      CLI / PowerShell
-```
-
-特に、
-
-**「Portalで1つずつ見るのは面倒だな」**
-
-と思ったときは、
-
-**「Resource Graphでまとめて取得できないか？」**
-
-と考えてみるとよいです。
-
----
-
-#
 # まとめ
 
 Azure Resource Graphは、Azure上のリソース情報をKQLで効率的に検索するためのサービスです。
