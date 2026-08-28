@@ -224,26 +224,6 @@ Resource Graphで取得した情報は、調査だけでなく、
 
 という使い方ができます。
 
-### イメージ
-
-```text
-Resource Graph
-      ↓
-対象リソースを検索
-      ↓
-Resource ID
-Resource Group
-Resource Name
-Subscription ID
-などを取得
-      ↓
-変数へ格納
-      ↓
-Azure CLI / Azure PowerShell
-      ↓
-対象リソースに対して処理
-```
-
 例えば、
 
 **「特定条件に該当するVMをResource Graphで探して、そのVMに対して処理を行う」**
@@ -259,7 +239,7 @@ Resource Graph
 
 Azure CLI / Azure PowerShell
     ↓
-リソースを「操作する」
+リソースを「削除する」※コマンドのパラメータに、リソース名、idなどを指定する。
 ```
 
 という役割分担ができます。
@@ -346,8 +326,7 @@ Azure CLI / Azure PowerShell
 
 Resource Graphは、
 
-**「Azureリソースを操作するためのもの」ではなく、  
-「Azureリソースを効率的に検索・調査するためのもの」**
+**「Azureリソースを効率的に検索・調査するためのもの」**
 
 と考えると分かりやすいです。
 
@@ -381,37 +360,7 @@ Resource Graphは、
 
 ---
 
-# どの方法を使うか迷った場合
-
-以下のように考えると使い分けやすくなります。
-
-```text
-Azureの情報を確認したい
-        │
-        ▼
-対象は少ない？
-        │
-   ┌────┴────┐
-   │         │
-  YES        NO
-   │         │
-   ▼         ▼
-Portal   Resource Graph
-             │
-             ▼
-      情報を取得した後、
-      リソースを操作する？
-             │
-        ┌────┴────┐
-        │         │
-       YES        NO
-        │         │
-        ▼         ▼
- CLI / PowerShell  調査完了
-```
-
----
-
+#
 # まとめ
 
 Azure Resource Graphは、Azure上のリソース情報をKQLで効率的に検索するためのサービスです。
